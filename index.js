@@ -1,16 +1,13 @@
 const path = require('path');
 const fs = require('fs');
 
-const SweetReporter = function (baseReporterDecorator, config, logger, helper) {
-  const log = logger.create('reporter.sweet');
+const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
+  const log = logger.create('reporter.e2e');
   const allMessages = [];
-  const reporterConfig = config.sweetReporter || {};
+  const reporterConfig = config.e2eReporter || {};
   let outputDir = reporterConfig.outputDir || '.';
 
-  console.log(outputDir);
-
   outputDir = helper.normalizeWinPath(path.resolve(config.basePath, outputDir)) + path.sep;
-  console.log(outputDir);
 
   baseReporterDecorator(this);
 
@@ -123,9 +120,9 @@ const SweetReporter = function (baseReporterDecorator, config, logger, helper) {
   };
 };
 
-SweetReporter.$inject = ['baseReporterDecorator', 'config', 'logger', 'helper', 'formatError']
+E2EReporter.$inject = ['baseReporterDecorator', 'config', 'logger', 'helper', 'formatError']
 
 // PUBLISH DI MODULE
 module.exports = {
-  'reporter:sweet': ['type', SweetReporter]
+  'reporter:e2e': ['type', E2EReporter]
 };

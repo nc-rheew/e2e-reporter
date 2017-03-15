@@ -45,70 +45,47 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
       return a.timestamp - b.timestamp;
     });
 
-    let requests = [];
-    let currentMatch;
+    let scenario;
     let currentUser;
     for (var i = 0; i < allLogs.length; i++) {
       const logObj = allLogs[i];
 
-      if (logObj.endOfTest && currentUser) {
-        if (currentMatch > -1) {
-          jsonToWrite[currentUser].currentScenario.requests.push(...requests);
-        } else {
-          jsonToWrite[currentUser].advisedScenario.requests.push(...requests);
-        }
-        requests = [];
-      }
-
-      if (logObj.type === 'requestId') {
-        requests.push({
-          loggingId: logObj.loggingId || null,
-          url: logObj.url,
-          errors: null
-        });
-      }
-
-      if (logObj.type === 'error') {
-        requests.push({
-          loggingId: null,
-          url: logObj.url,
-          errors: {
-            message: logObj.message,
-            status: logObj.status
+      switch (logObj.type) {
+        case 'testStart':
+          currentUser = logObj.email;
+          scenario = logObj.scenario;
+          if (!jsonToWrite[currentUser]) {
+            jsonToWrite[currentUser] = {};
           }
-        });
-      }
-
-      if (logObj.type === 'test') {
-        currentUser = logObj.email;
-        if (!jsonToWrite[currentUser]) {
-          jsonToWrite[currentUser] = {};
-        }
-        currentMatch = logObj.valueName.search(/current/);
-
-        if (currentMatch > -1) {
-          if (!jsonToWrite[currentUser].currentScenario) {
-            jsonToWrite[currentUser].currentScenario = {
-              requests: []
-            };
-          }
-
-          jsonToWrite[currentUser].currentScenario[logObj.valueName] = {
+          jsonToWrite[currentUser][scenario] = {
+            requests: []
+          };
+          break;
+        case 'requestId':
+          jsonToWrite[currentUser][scenario].requests.push({
+            loggingId: logObj.loggingId,
+            url: logObj.url,
+            errors: null
+          });
+          break;
+        case 'error':
+          jsonToWrite[currentUser][scenario].requests.push({
+            loggingId: null,
+            url: logObj.url,
+            errors: {
+              message: logObj.message,
+              status: logObj.status
+            }
+          });
+          break;
+        case 'test':
+          jsonToWrite[currentUser][scenario][logObj.valueName] = {
             actual: logObj.actual,
             expected: logObj.expected
           };
-        } else {
-          if (!jsonToWrite[currentUser].advisedScenario) {
-            jsonToWrite[currentUser].advisedScenario = {
-              requests: []
-            };
-          }
-
-          jsonToWrite[currentUser].advisedScenario[logObj.valueName] = {
-            actual: logObj.actual,
-            expected: logObj.expected
-          };
-        }
+          break;
+        default:
+          break;
       }
     }
 
@@ -116,13 +93,6 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
 
     // Release memory held by the test suite.
     jsonToWrite = null;
-  };
-
-  this.onSpecComplete = function(browser, result) {
-    allLogs.push({
-      timestamp: Date.now(),
-      endOfTest: true
-    });
   };
 
   this.onExit = function (done) {

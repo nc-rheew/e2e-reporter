@@ -3,7 +3,7 @@ const fs = require('fs');
 
 const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
   const log = logger.create('reporter.e2e');
-  const allMessages = [];
+  const allLogs = [];
   const reporterConfig = config.e2eReporter || {};
   let outputDir = reporterConfig.outputDir || '.';
 
@@ -13,9 +13,9 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
 
   this.adapters = [
     function (msg) {
-      const startMatch = msg.match(/{".+":.+,.+\}/);
-      if (startMatch) {
-        allMessages.push(JSON.parse(startMatch[0]));
+      const objectMatch = msg.match(/{".+":.+,.+\}/);
+      if (objectMatch) {
+        allLogs.push(JSON.parse(objectMatch[0]));
       }
     }
   ];
@@ -45,58 +45,58 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
   this.onBrowserComplete = function (browser) {
     let jsonToWrite = {};
 
-    allMessages.sort(function(a, b) {
+    allLogs.sort(function(a, b) {
       return a.timestamp - b.timestamp;
     });
 
     let requests = [];
     let currentMatch = null;
     let currentUser;
-    for (var i = 0; i < allMessages.length; i++) {
-      const item = allMessages[i];
+    for (var i = 0; i < allLogs.length; i++) {
+      const logObj = allLogs[i];
 
-      if (item.endOfTest && currentUser) {
-        console.log(currentUser);
+      if (logObj.endOfTest && currentUser) {
         if (currentMatch > -1 && !jsonToWrite[currentUser].currentScenario.requests) {
           jsonToWrite[currentUser].currentScenario.requests = [...requests];
+          requests = [];
         } else if (currentMatch === -1 && !jsonToWrite[currentUser].advisedScenario.requests) {
           jsonToWrite[currentUser].advisedScenario.requests = [...requests];
+          requests = [];
         }
-        requests = [];
       }
 
-      if (item.type === 'console_log') {
+      if (logObj.type === 'console_log') {
         requests.push({
-          loggingId: item.loggingId || null,
-          url: item.url,
-          errors: item.errors
+          loggingId: logObj.loggingId || null,
+          url: logObj.url,
+          errors: logObj.errors
         });
       }
 
-      if (!jsonToWrite[item.email] && item.email) {
-        jsonToWrite[item.email] = {};
+      if (!jsonToWrite[logObj.email] && logObj.email) {
+        jsonToWrite[logObj.email] = {};
       }
 
-      if (jsonToWrite[item.email] && item.valueName) {
-        currentUser = item.email;
-        currentMatch = item.valueName.search(/current/);
+      if (jsonToWrite[logObj.email] && logObj.valueName) {
+        currentUser = logObj.email;
+        currentMatch = logObj.valueName.search(/current/);
         if (currentMatch > -1) {
-          if (!jsonToWrite[item.email].currentScenario) {
-            jsonToWrite[item.email].currentScenario = {};
+          if (!jsonToWrite[logObj.email].currentScenario) {
+            jsonToWrite[logObj.email].currentScenario = {};
           }
 
-          jsonToWrite[item.email].currentScenario[item.valueName] = {
-            actual: item.actual,
-            expected: item.expected
+          jsonToWrite[logObj.email].currentScenario[logObj.valueName] = {
+            actual: logObj.actual,
+            expected: logObj.expected
           };
         } else {
-          if (!jsonToWrite[item.email].advisedScenario) {
-            jsonToWrite[item.email].advisedScenario = {};
+          if (!jsonToWrite[logObj.email].advisedScenario) {
+            jsonToWrite[logObj.email].advisedScenario = {};
           }
 
-          jsonToWrite[item.email].advisedScenario[item.valueName] = {
-            actual: item.actual,
-            expected: item.expected
+          jsonToWrite[logObj.email].advisedScenario[logObj.valueName] = {
+            actual: logObj.actual,
+            expected: logObj.expected
           };
         }
       }
@@ -109,7 +109,7 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
   };
 
   this.onSpecComplete = function(browser, result) {
-    allMessages.push({
+    allLogs.push({
       timestamp: Date.now(),
       endOfTest: true
     });

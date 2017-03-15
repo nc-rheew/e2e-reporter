@@ -1,5 +1,5 @@
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 
 const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
   const log = logger.create('reporter.e2e');
@@ -10,15 +10,6 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
   outputDir = helper.normalizeWinPath(path.resolve(config.basePath, outputDir)) + path.sep;
 
   baseReporterDecorator(this);
-
-  this.adapters = [
-    function (msg) {
-      const objectMatch = msg.match(/{".+":.+,.+\}/);
-      if (objectMatch) {
-        allLogs.push(JSON.parse(objectMatch[0]));
-      }
-    }
-  ];
 
   const writeToFile = function (jsonToWrite) {
     const newOutputFile = path.join(outputDir, 'E2E-MASTER-LOG-' + Date.now() + '.json');
@@ -37,9 +28,14 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
     });
   };
 
-  // "browser_start" - a test run is beginning in _this_ browser
-  this.onBrowserStart = function (browser) {
-  }
+  this.adapters = [
+    function (msg) {
+      const objectMatch = msg.match(/{".+":.+,.+\}/);
+      if (objectMatch) {
+        allLogs.push(JSON.parse(objectMatch[0]));
+      }
+    }
+  ];
 
   // "browser_complete" - a test run has completed in _this_ browser
   this.onBrowserComplete = function (browser) {
@@ -50,51 +46,66 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
     });
 
     let requests = [];
-    let currentMatch = null;
+    let currentMatch;
     let currentUser;
     for (var i = 0; i < allLogs.length; i++) {
       const logObj = allLogs[i];
+      console.log(logObj);
 
       if (logObj.endOfTest && currentUser) {
-        if (currentMatch > -1 && !jsonToWrite[currentUser].currentScenario.requests) {
-          jsonToWrite[currentUser].currentScenario.requests = [...requests];
-          requests = [];
-        } else if (currentMatch === -1 && !jsonToWrite[currentUser].advisedScenario.requests) {
-          jsonToWrite[currentUser].advisedScenario.requests = [...requests];
-          requests = [];
+        if (currentMatch > -1) {
+          jsonToWrite[currentUser].currentScenario.requests.push(...requests);
+        } else {
+          jsonToWrite[currentUser].advisedScenario.requests.push(...requests);
         }
+        requests = [];
       }
 
-      if (logObj.type === 'console_log') {
+      if (logObj.type === 'requestId') {
         requests.push({
           loggingId: logObj.loggingId || null,
           url: logObj.url,
-          errors: logObj.errors
+          errors: null
         });
       }
 
-      if (!jsonToWrite[logObj.email] && logObj.email) {
-        jsonToWrite[logObj.email] = {};
+      if (logObj.type === 'error') {
+        requests.push({
+          loggingId: null,
+          url: logObj.url,
+          errors: {
+            message: logObj.message,
+            status: logObj.status
+          }
+        });
       }
 
-      if (jsonToWrite[logObj.email] && logObj.valueName) {
+      if (logObj.type === 'test') {
         currentUser = logObj.email;
+        if (!jsonToWrite[currentUser]) {
+          jsonToWrite[currentUser] = {};
+        }
         currentMatch = logObj.valueName.search(/current/);
+
         if (currentMatch > -1) {
-          if (!jsonToWrite[logObj.email].currentScenario) {
-            jsonToWrite[logObj.email].currentScenario = {};
+          if (!jsonToWrite[currentUser].currentScenario) {
+            jsonToWrite[currentUser].currentScenario = {
+              requests: []
+            };
           }
 
-          jsonToWrite[logObj.email].currentScenario[logObj.valueName] = {
+          jsonToWrite[currentUser].currentScenario[logObj.valueName] = {
             actual: logObj.actual,
             expected: logObj.expected
           };
         } else {
-          if (!jsonToWrite[logObj.email].advisedScenario) {
-            jsonToWrite[logObj.email].advisedScenario = {};
+          if (!jsonToWrite[currentUser].advisedScenario) {
+            jsonToWrite[currentUser].advisedScenario = {
+              requests: []
+            };
           }
 
-          jsonToWrite[logObj.email].advisedScenario[logObj.valueName] = {
+          jsonToWrite[currentUser].advisedScenario[logObj.valueName] = {
             actual: logObj.actual,
             expected: logObj.expected
           };

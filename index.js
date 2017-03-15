@@ -50,7 +50,6 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
     let currentUser;
     for (var i = 0; i < allLogs.length; i++) {
       const logObj = allLogs[i];
-      console.log(logObj);
 
       if (logObj.endOfTest && currentUser) {
         if (currentMatch > -1) {

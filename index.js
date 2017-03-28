@@ -39,37 +39,38 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
 
   // "browser_complete" - a test run has completed in _this_ browser
   this.onBrowserComplete = function (browser) {
-    let jsonToWrite = {};
+    let jsonToWrite = [];
 
     allLogs.sort(function(a, b) {
       return a.timestamp - b.timestamp;
     });
 
-    let scenario;
-    let currentUser;
+    let userObj;
+
     for (var i = 0; i < allLogs.length; i++) {
       const logObj = allLogs[i];
 
       switch (logObj.type) {
         case 'testStart':
-          currentUser = logObj.email;
-          scenario = logObj.scenario;
-          if (!jsonToWrite[currentUser]) {
-            jsonToWrite[currentUser] = {};
-          }
-          jsonToWrite[currentUser][scenario] = {
-            requests: []
+          userObj = {
+            name: logObj.name,
+            email: logObj.email,
+            scenario: logObj.scenario,
+            requests: [],
+            accounts: [],
+            tests: {}
           };
+          jsonToWrite.push(userObj);
           break;
         case 'requestId':
-          jsonToWrite[currentUser][scenario].requests.push({
+          userObj.requests.push({
             loggingId: logObj.loggingId,
             url: logObj.url,
             errors: null
           });
           break;
         case 'error':
-          jsonToWrite[currentUser][scenario].requests.push({
+          userObj.requests.push({
             loggingId: null,
             url: logObj.url,
             errors: {
@@ -79,10 +80,21 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
           });
           break;
         case 'test':
-          jsonToWrite[currentUser][scenario][logObj.valueName] = {
+          userObj.tests[logObj.valueName] = {
+            expected: logObj.expected,
             actual: logObj.actual,
-            expected: logObj.expected
+            diff: logObj.expected - logObj.actual
           };
+          break;
+        case 'directional':
+          userObj.tests.push({
+            initial: logObj.initial,
+            result: logObj.result,
+            name: logObj.valueName
+          });
+          break;
+        case 'accountContribution':
+          userObj.accounts.push(logObj.accountContributions);
           break;
         default:
           break;

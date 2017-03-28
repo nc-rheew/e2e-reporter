@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const _ = require('lodash');
 
 const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
   const log = logger.create('reporter.e2e');
@@ -71,7 +72,7 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
           break;
         case 'error':
           userObj.requests.push({
-            loggingId: null,
+            loggingId: logObj.loggingId,
             url: logObj.url,
             errors: {
               message: logObj.message,
@@ -87,11 +88,11 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
           };
           break;
         case 'directional':
-          userObj.tests.push({
+          userObj.tests[logObj.valueName] = {
             initial: logObj.initial,
             result: logObj.result,
             name: logObj.valueName
-          });
+          };
           break;
         case 'accountContribution':
           userObj.accounts.push(logObj.accountContributions);

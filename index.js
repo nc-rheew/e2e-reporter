@@ -1,9 +1,8 @@
 const fs = require('fs');
 const path = require('path');
-const _ = require('lodash');
 
 const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
-  const log = logger.create('reporter.e2e');
+  const e2eLogger = logger.create('reporter.e2e');
   const allLogs = [];
   const reporterConfig = config.e2eReporter || {};
   let outputDir = reporterConfig.outputDir || '.';
@@ -21,9 +20,9 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
     helper.mkdirIfNotExists(path.dirname(newOutputFile), function () {
       fs.writeFile(newOutputFile, JSON.stringify(jsonToWrite), function (err) {
         if (err) {
-          log.warn('Cannot write\n\t' + err);
+          e2eLogger.warn('Cannot write\n\t' + err);
         } else {
-          log.debug('Results written to "%s".', newOutputFile);
+          e2eLogger.debug('Results written to "%s".', newOutputFile);
         }
       });
     });
@@ -33,6 +32,7 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
     function (msg) {
       const objectMatch = msg.match(/{".+":.+,.+\}/);
       if (objectMatch) {
+        console.log(objectMatch);
         allLogs.push(JSON.parse(objectMatch[0]));
       }
     }
@@ -48,15 +48,13 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
 
     let userObj;
 
-    for (var i = 0; i < allLogs.length; i++) {
-      const logObj = allLogs[i];
-
-      switch (logObj.type) {
+    allLogs.forEach(function(log) {
+      switch (log.type) {
         case 'testStart':
           userObj = {
-            name: logObj.name,
-            email: logObj.email,
-            scenario: logObj.scenario,
+            testType: log.testType,
+            email: log.email,
+            scenario: log.scenario,
             requests: [],
             accounts: [],
             tests: {}
@@ -65,46 +63,46 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
           break;
         case 'requestId':
           userObj.requests.push({
-            loggingId: logObj.loggingId,
-            url: logObj.url,
+            loggingId: log.loggingId,
+            url: log.url,
             errors: null
           });
           break;
         case 'error':
           userObj.requests.push({
-            loggingId: logObj.loggingId,
-            url: logObj.url,
+            loggingId: log.loggingId,
+            url: log.url,
             errors: {
-              message: logObj.message,
-              status: logObj.status
+              message: log.message,
+              status: log.status
             }
           });
           break;
-        case 'test':
-          userObj.tests[logObj.valueName] = {
-            expected: logObj.expected,
-            actual: logObj.actual,
-            diff: logObj.expected - logObj.actual
+        case 'equality':
+          userObj.tests[log.valueName] = {
+            expected: log.expected,
+            actual: log.actual,
+            diff: log.expected - log.actual
           };
           break;
         case 'directional':
-          userObj.tests[logObj.valueName] = {
-            initial: logObj.initial,
-            result: logObj.result,
-            name: logObj.valueName
+          userObj.tests[log.valueName] = {
+            initial: log.initial,
+            result: log.result,
+            name: log.valueName,
+            testResult: log.testResult
           };
           break;
         case 'accountContribution':
-          userObj.accounts.push(logObj.accountContributions);
+          userObj.accounts.push(log.accountContributions);
           break;
         default:
           break;
       }
-    }
+    });
 
     writeToFile(jsonToWrite);
 
-    // Release memory held by the test suite.
     jsonToWrite = null;
   };
 
@@ -113,9 +111,8 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
   };
 };
 
-E2EReporter.$inject = ['baseReporterDecorator', 'config', 'logger', 'helper', 'formatError']
+E2EReporter.$inject = ['baseReporterDecorator', 'config', 'logger', 'helper'];
 
-// PUBLISH DI MODULE
 module.exports = {
   'reporter:e2e': ['type', E2EReporter]
 };

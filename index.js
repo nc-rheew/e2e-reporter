@@ -14,7 +14,7 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
   const writeToFile = function (jsonToWrite) {
     const newOutputFile = path.join(outputDir, 'E2E-MASTER-LOG-' + Date.now() + '.json');
     if (!jsonToWrite) {
-      return // don't die if browser didn't start
+      return;
     }
 
     helper.mkdirIfNotExists(path.dirname(newOutputFile), function () {
@@ -32,19 +32,13 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
     function (msg) {
       const objectMatch = msg.match(/{".+":.+,.+\}/);
       if (objectMatch) {
-        console.log(objectMatch);
         allLogs.push(JSON.parse(objectMatch[0]));
       }
     }
   ];
 
-  // "browser_complete" - a test run has completed in _this_ browser
   this.onBrowserComplete = function (browser) {
     let jsonToWrite = [];
-
-    allLogs.sort(function(a, b) {
-      return a.timestamp - b.timestamp;
-    });
 
     let userObj;
 
@@ -94,7 +88,7 @@ const E2EReporter = function (baseReporterDecorator, config, logger, helper) {
           };
           break;
         case 'accountContribution':
-          userObj.accounts.push(log.accountContributions);
+          userObj.accounts.push(log.contributionsPerAccount);
           break;
         default:
           break;
